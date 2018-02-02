@@ -91,7 +91,8 @@ static Key keys[] = {
 	TAGKEYS(                        XK_7,                      6)
 	TAGKEYS(                        XK_8,                      7)
 	TAGKEYS(                        XK_9,                      8)
-	{ MODKEY|ShiftMask,             XK_q,      quit,           {0} },
+	{ MODKEY,                       XK_q,      quit,           {.i = 25} }, // reload is implemented in sh wrapper
+	{ MODKEY|ShiftMask,             XK_q,      quit,           {.i = 0} },
 };
 
 /* button definitions */
