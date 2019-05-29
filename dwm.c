@@ -735,6 +735,15 @@ enternotify(XEvent *e)
 void
 focus(Client *c)
 {
+	if (!c) {
+		Window win = None;
+		Window winroot;
+		int rootx, rooty, winx, winy;
+		unsigned int mask;
+		if (XQueryPointer(dpy, root, &winroot, &win, &rootx, &rooty, &winx, &winy, &mask))
+			c = wintoclient(win);
+	}
+
 	if (!c || !ISVISIBLE(c))
 		for (c = selmon->stack; c && !ISVISIBLE(c) && !c->isdesktop; c = c->snext);
 
@@ -750,7 +759,8 @@ focus(Client *c)
 		XSetWindowBorder(dpy, c->win, scheme[SchemeSel].border.pixel);
 		setfocus(c);
 	} else {
-		XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
+		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
+		XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
 	}
 	selmon->sel = c;
 }
@@ -788,16 +798,16 @@ focusstack(const Arg *arg)
 	if (!selmon->sel)
 		return;
 	if (arg->i > 0) {
-		for (c = selmon->sel->next; c && !ISVISIBLE(c); c = c->next);
+		for (c = selmon->sel->next; c && (c->isdesktop || !ISVISIBLE(c)); c = c->next);
 		if (!c)
-			for (c = selmon->clients; c && !ISVISIBLE(c); c = c->next);
+			for (c = selmon->clients; c && (c->isdesktop || !ISVISIBLE(c)); c = c->next);
 	} else {
 		for (i = selmon->clients; i != selmon->sel; i = i->next)
-			if (ISVISIBLE(i))
+			if (!i->isdesktop && ISVISIBLE(i))
 				c = i;
 		if (!c)
 			for (; i; i = i->next)
-				if (ISVISIBLE(i))
+				if (!i->isdesktop && ISVISIBLE(i))
 					c = i;
 	}
 	if (c) {
@@ -1670,8 +1680,8 @@ tag(const Arg *arg)
 	if (selmon->sel->issticky) return;
 	if (selmon->sel && arg->ui & TAGMASK) {
 		selmon->sel->tags = arg->ui & TAGMASK;
-		focus(NULL);
 		arrange(selmon);
+		focus(NULL);
 	}
 }
 
@@ -2095,9 +2105,9 @@ view(const Arg *arg)
 	selmon->seltags ^= 1; /* toggle sel tagset */
 	if (arg->ui & TAGMASK)
 		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
-	focus(NULL);
 	arrange(selmon);
 	updatecurrentdesktop();
+	focus(NULL);
 }
 
 Client *
