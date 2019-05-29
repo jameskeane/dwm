@@ -750,8 +750,7 @@ focus(Client *c)
 		XSetWindowBorder(dpy, c->win, scheme[SchemeSel].border.pixel);
 		setfocus(c);
 	} else {
-		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
-		XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
+		XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
 	}
 	selmon->sel = c;
 }
