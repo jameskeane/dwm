@@ -746,8 +746,6 @@ focus(Client *c)
 			selmon = c->mon;
 		if (c->isurgent)
 			clearurgent(c);
-		detachstack(c);
-		attachstack(c);
 		grabbuttons(c, 1);
 		XSetWindowBorder(dpy, c->win, scheme[SchemeSel].border.pixel);
 		setfocus(c);
@@ -1016,7 +1014,7 @@ manage(Window w, XWindowAttributes *wa)
 	c->h = c->oldh = wa->height;
 	c->oldbw = wa->border_width;
 
-	c->bw = (c->isdesktop || c->issplash) ? 0 : borderpx;
+	c->bw = (c->isdesktop || c->issplash || c->isfullscreen) ? 0 : borderpx;
 	if (!c->isdesktop) { /* 'desktop' windows ignore work area */
 		if (c->x + WIDTH(c) > c->mon->mx + c->mon->mw)
 			c->x = c->mon->mx + c->mon->mw - WIDTH(c);
@@ -1340,7 +1338,7 @@ restack(Monitor *m)
 	if (!m->sel)
 		return;
 
-	if (m->sel->isfloating || !m->lt[m->sellt]->arrange)
+	if (!m->sel->isfullscreen && (m->sel->isfloating || !m->lt[m->sellt]->arrange))
 		XRaiseWindow(dpy, m->sel->win);
 
 	if (m->lt[m->sellt]->arrange) {
@@ -1348,14 +1346,14 @@ restack(Monitor *m)
 
 		// restack all floating windows above the non-floating
 		for (c = m->stack; c; c = c->snext) {
-			if (c->isfloating && ISVISIBLE(c)) {
+			if (!c->isfullscreen && c->isfloating && ISVISIBLE(c)) {
 				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
 				wc.sibling = c->win;
 			}
 		}
 
 		for (c = m->stack; c; c = c->snext) {
-			if (!c->isfloating && ISVISIBLE(c)) {
+			if ((!c->isfloating || c->isfullscreen) && ISVISIBLE(c)) {
 				XConfigureWindow(dpy, c->win, CWSibling|CWStackMode, &wc);
 				wc.sibling = c->win;
 			}
@@ -1497,7 +1495,6 @@ setfullscreen(Client *c, int fullscreen)
 		c->bw = 0;
 		c->isfloating = 1;
 		resizeclient(c, c->mon->mx, c->mon->my, c->mon->mw, c->mon->mh);
-		XRaiseWindow(dpy, c->win);
 	} else if (!fullscreen && c->isfullscreen){
 		XChangeProperty(dpy, c->win, netatom[NetWMState], XA_ATOM, 32,
 		                PropModeReplace, (unsigned char*)0, 0);
@@ -1509,8 +1506,8 @@ setfullscreen(Client *c, int fullscreen)
 		c->w = c->oldw;
 		c->h = c->oldh;
 		resizeclient(c, c->x, c->y, c->w, c->h);
-		arrange(c->mon);
 	}
+	arrange(c->mon);
 }
 
 void
@@ -1636,7 +1633,7 @@ showhide(Client *c)
 	if (ISVISIBLE(c)) {
 		/* show clients top down */
 		XMoveWindow(dpy, c->win, c->x, c->y);
-		if ((!c->mon->lt[c->mon->sellt]->arrange || c->isfloating || c->issticky) && !c->isfullscreen)
+		if ((!c->mon->lt[c->mon->sellt]->arrange || c->isfloating || c->issticky))
 			resize(c, c->x, c->y, c->w, c->h, 0);
 		showhide(c->snext);
 	} else {
@@ -2171,8 +2168,7 @@ zoom(const Arg *arg)
 {
 	Client *c = selmon->sel;
 
-	if (!selmon->lt[selmon->sellt]->arrange
-	|| (selmon->sel && selmon->sel->isfloating))
+	if (!selmon->lt[selmon->sellt]->arrange || (selmon->sel && selmon->sel->isfloating))
 		return;
 	if (c == nexttiled(selmon->clients))
 		if (!c || !(c = nexttiled(c->next)))
